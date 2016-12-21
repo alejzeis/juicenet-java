@@ -1,6 +1,7 @@
 package io.github.jython234.juicenet.network.packet;
 
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.charset.Charset;
 
 /**
@@ -12,6 +13,7 @@ import java.nio.charset.Charset;
 public abstract class JuiceNetPacket {
     public final byte[] encode() {
         ByteBuffer bb = ByteBuffer.allocate(getSize());
+        bb.order(ByteOrder.LITTLE_ENDIAN);
 
         bb.putShort(getID());
         _encode(bb);
@@ -21,6 +23,7 @@ public abstract class JuiceNetPacket {
 
     public final void decode(byte[] data) {
         ByteBuffer bb = ByteBuffer.wrap(data);
+        bb.order(ByteOrder.LITTLE_ENDIAN);
 
         if(bb.getShort() != getID())
             throw new RuntimeException("Data ID does not match packet ID!");

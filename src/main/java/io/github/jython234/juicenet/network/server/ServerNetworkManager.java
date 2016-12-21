@@ -1,8 +1,7 @@
-package io.github.jython234.juicenet.network;
+package io.github.jython234.juicenet.network.server;
 
 import io.github.jython234.juicenet.JuiceNetConstants;
 import io.github.jython234.juicenet.network.packet.peer.PeerResponsePacket;
-import lombok.Getter;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -24,7 +23,7 @@ public class ServerNetworkManager {
     public void handleRawPacket(DatagramPacket packet) throws IOException {
         packet.setData(Arrays.copyOf(packet.getData(), packet.getLength()));
 
-        short pid = (short) ((packet.getData()[1] << 8) | packet.getData()[0]); // Read 2 bytes to short
+        short pid = (short) ((packet.getData()[1] & 0xFF) << 8 | packet.getData()[0] & 0xFF); // Read 2 bytes to short
 
         switch(pid) {
             case JuiceNetConstants.ID_SEARCH_PEERS_PACKET:

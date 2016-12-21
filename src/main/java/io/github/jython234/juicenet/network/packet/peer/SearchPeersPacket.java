@@ -5,6 +5,7 @@ import io.github.jython234.juicenet.network.packet.JuiceNetPacket;
 import io.jsonwebtoken.Jwts;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
 
 /**
  * ID_SEARCH_PEERS_PACKET implementation
@@ -38,7 +39,7 @@ public class SearchPeersPacket extends JuiceNetPacket {
 
     @Override
     public int getSize() {
-        return 2 + jwtString.length();
+        return 4 + jwtString.getBytes(Charset.forName("UTF-8")).length;
     }
 
     @Override

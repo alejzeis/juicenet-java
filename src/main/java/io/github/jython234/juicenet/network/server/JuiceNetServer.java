@@ -1,6 +1,7 @@
-package io.github.jython234.juicenet.network;
+package io.github.jython234.juicenet.network.server;
 
 import io.github.jython234.juicenet.JuiceNetConstants;
+import io.github.jython234.juicenet.network.UDPServerSocket;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.impl.crypto.MacProvider;
@@ -13,7 +14,6 @@ import java.io.IOException;
 import java.net.*;
 import java.security.Key;
 import java.util.Random;
-import java.util.concurrent.SynchronousQueue;
 
 /**
  * A JuiceNet Server implementation
@@ -23,7 +23,7 @@ import java.util.concurrent.SynchronousQueue;
 public class JuiceNetServer {
     public final String serverJWT;
     public final long serverID;
-    public final int bindPort;
+    public final InetSocketAddress bindAddress;
 
     public final boolean broadcast;
 
@@ -31,13 +31,13 @@ public class JuiceNetServer {
     @Getter private boolean crashed = false;
 
     @Getter private Logger logger;
-    private DatagramSocket socket;
+    private UDPServerSocket socket;
 
     @Getter private ServerNetworkManager networkManager;
 
-    public JuiceNetServer(int bindPort, boolean broadcast) {
+    public JuiceNetServer(InetSocketAddress bindAddress, boolean broadcast) {
         this.serverID = new Random().nextLong();
-        this.bindPort = bindPort;
+        this.bindAddress = bindAddress;
         this.logger = LoggerFactory.getLogger("JuiceNetServer");
 
         this.broadcast = broadcast;
@@ -51,7 +51,6 @@ public class JuiceNetServer {
         Key key = MacProvider.generateKey();
 
         this.serverJWT = Jwts.builder()
-                .setSubject("server-ident")
                 .signWith(SignatureAlgorithm.HS512, key)
                 .setPayload(jwtPayload)
                 .compact();
@@ -86,10 +85,10 @@ public class JuiceNetServer {
     private void run() {
         this.logger.info(JuiceNetConstants.LIBRARY + " version " + JuiceNetConstants.LIBRARY_VERSION_STRING + " on " + System.getProperty("os.name") + " " + System.getProperty("os.arch"));
         try {
-            this.socket = new DatagramSocket(this.bindPort);
+            this.socket = new UDPServerSocket(this.bindAddress);
         } catch (SocketException e) {
             this.logger.error("Failed to create Socket!");
-            this.logger.error("Perhaps another program is bound on port " + this.bindPort + "?");
+            this.logger.error("Perhaps another program is bound on port " + this.bindAddress.getPort() + "?");
             e.printStackTrace();
 
             this.running = false;
@@ -97,27 +96,11 @@ public class JuiceNetServer {
             return;
         }
 
-        try {
-            // this.socket.setSoTimeout(1);
-            this.socket.setBroadcast(true);
-        } catch (SocketException e) {
-            this.logger.error("Failed to set socket options!");
-            e.printStackTrace();
-
-            this.socket.close();
-
-            this.running = false;
-            this.crashed = true;
-            return;
-        }
-
-        this.logger.info("Listening for packets on port " + this.bindPort);
+        this.logger.info("Listening for packets on " + this.bindAddress.toString());
         while(this.running) {
             // Main server loop
-            DatagramPacket pk = new DatagramPacket(new byte[2048], 2048);
             try {
-                this.socket.receive(pk);
-                this.networkManager.handleRawPacket(pk);
+                this.networkManager.handleRawPacket(this.socket.blockingRecv());
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -132,13 +115,28 @@ public class JuiceNetServer {
     @SuppressWarnings("unchecked")
     private String generateServerJSON() {
         JSONObject root = new JSONObject();
+        JSONObject library = new JSONObject();
+        JSONObject protocol = new JSONObject();
+        JSONObject server = new JSONObject();
+        JSONObject system = new JSONObject();
 
-        root.put("library", JuiceNetConstants.LIBRARY);
-        root.put("library-version", JuiceNetConstants.LIBRARY_VERSION_STRING);
-        root.put("protocol-major", JuiceNetConstants.PROTOCOL_VERSION_MAJOR);
-        root.put("protocol-minor", JuiceNetConstants.PROTOCOL_VERSION_MINOR);
-        root.put("serverID", this.serverID);
-        root.put("serverPort", this.bindPort);
+        system.put("os", System.getProperty("os.name"));
+        system.put("arch", System.getProperty("os.arch"));
+        system.put("version", System.getProperty("os.version"));
+
+        library.put("name", JuiceNetConstants.LIBRARY);
+        library.put("version", JuiceNetConstants.LIBRARY_VERSION_STRING);
+
+        protocol.put("major", JuiceNetConstants.PROTOCOL_VERSION_MAJOR);
+        protocol.put("minor", JuiceNetConstants.PROTOCOL_VERSION_MINOR);
+
+        server.put("server-id", this.serverID);
+        server.put("port", this.bindAddress.getPort());
+        server.put("system", system);
+
+        root.put("library", library);
+        root.put("protocol", protocol);
+        root.put("server", server);
 
         return root.toJSONString();
     }

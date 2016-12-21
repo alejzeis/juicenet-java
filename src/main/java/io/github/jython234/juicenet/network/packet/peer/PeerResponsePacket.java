@@ -4,6 +4,7 @@ import io.github.jython234.juicenet.JuiceNetConstants;
 import io.github.jython234.juicenet.network.packet.JuiceNetPacket;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
 
 /**
  * ID_PEER_RESPONSE_PACKET implementation
@@ -35,7 +36,7 @@ public class PeerResponsePacket extends JuiceNetPacket {
 
     @Override
     public int getSize() {
-        return 2 + jwtString.length();
+        return 4 + jwtString.getBytes(Charset.forName("UTF-8")).length;
     }
 
     @Override
